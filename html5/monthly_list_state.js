@@ -1,4 +1,5 @@
 class MonthlyListState extends State{
+    #trans_list=[];
     init(){
         super.init();
 
@@ -11,29 +12,47 @@ class MonthlyListState extends State{
         add_btn.value="+";
         add_btn.onclick=this.#on_add_transaction;
         document.body.appendChild(add_btn);
+        document.body.appendChild(document.createElement("br"));
+
         console.log("show_monthly_list(Info)>>Generateing item list begin");
-        var trans_list=new Array();
+        this.#trans_list=new Array();
         for(var i=0;i < app.data.transactions.length;++i){
             var item=app.data.transactions[i];
             if(app.current_date.getFullYear()==item.target_date.getFullYear() &&
                 app.current_date.getMonth()==item.target_date.getMonth()){
-                trans_list.push(item);
+                this.#trans_list.push(item);
             }
         }
-        for(var i=0;i < trans_list.length;++i){
-            var item=trans_list[i];
-            document.body.appendChild(document.createTextNode(item.toString()));
-            var btn=document.createElement("input");
-            btn.type="button";
-            btn.value="edit";
-            document.body.appendChild(btn);
+        var list=document.createElement("ul");
+        list.id="transaction_list"; 
+        for(var i=0;i < this.#trans_list.length;++i){
+           
+            var check=document.createElement("input");
+            check.type="checkbox";
+            check.value="false";
+            list.appendChild(check);
+            var item=this.#trans_list[i];
+            list.appendChild(document.createTextNode(item.toString()));
+            list.appendChild(document.createElement("br"));
 
         }
+        document.body.appendChild(list);
         console.log("show_monthly_list(Info)>>Generateing item list end");
+        this.create_command_menu();
     }
     #on_add_transaction(){
         app.set_mode(new EditTransactionState());
     
     }
-    
+    edit_transaction(){
+        app.selected_transactions=[];
+        var list=document.body.getElementsById("list")[0];
+        for(var i=0;i < list.childNodes.length;i+=3){
+            var check=list[i];
+            if(check.value){
+                app.selected_transactions.push(this.#trans_list[i/3]);
+            }
+        }
+
+    }
 }

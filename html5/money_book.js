@@ -7,7 +7,7 @@ class Transaction{
     note="";
 
 
-
+    
     toString(){
         return this.target_date.toString()+" "+this.method+" "+this.usage+" "+this.value.toString();
     }

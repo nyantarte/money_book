@@ -1,9 +1,12 @@
+
+
 import 'package:flutter/material.dart';
 import 'package:flutter_money_book/transaction.dart';
 import 'package:flutter_money_book/edit_method_usages.dart';
-
+import 'package:uuid/uuid.dart';
+import 'package:uuid/uuid_util.dart';
 class EditTransaction extends StatefulWidget {
-  const EditTransaction(this.targetDate,{super.key, required this.title});
+  EditTransaction(this.targetDate,this.targetData,{super.key, required this.title});
 
   // This widget is the home page of your application. It is stateful, meaning
   // that it has a State object (defined below) that contains fields that affect
@@ -15,7 +18,8 @@ class EditTransaction extends StatefulWidget {
   // always marked "final".
 
   final String title;
-  final targetDate;
+  DateTime? targetDate=null;
+   Transaction? targetData=null;
   @override
   State<EditTransaction> createState() => _EditTransactionState();
 }
@@ -27,22 +31,133 @@ class _EditTransactionState extends State<EditTransaction> {
   var _type = _TransactionType.Income;
   var _method = "";
   var _usage = "";
-
-  void _addTransaction() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-
-    });
-  }
+  var _valueController = TextEditingController(text: "0");
+  var _noteController = TextEditingController();
+  Future<List<String>> methodList=Future(() => List.empty());
+  Future<List<String>> usageList=Future(() => List.empty());
 
   _onTypeChanged(value) {
     setState(() {
       _type = value;
     });
+  }
+
+  _showEditMethodUsagesView(bool isMethod) async {
+    final result = await Navigator.of(context).push(
+        MaterialPageRoute(builder: (context) {
+          return EditMethodUsages(title: "", isMethod);
+        }));
+
+    if(isMethod){
+      methodList= MoneyBookManager.getManager().getMethods();
+
+
+
+    }else{
+      usageList= MoneyBookManager.getManager().getUsages();
+    }
+
+
+    setState(() {
+    });
+  }
+
+  _onValueAdded(String valueAdded) {
+    if ("0" != _valueController.text) {
+      _valueController.text = _valueController.text + valueAdded;
+    } else {
+      _valueController.text = valueAdded;
+    }
+  }
+
+  _onDateChange(context) async {
+    var curDate = DateTime.now();
+    if (null != this.widget.targetDate) {
+      curDate = widget.targetDate!!;
+    }
+    final DateTime? datePicked = await showDatePicker(
+        context: context,
+        initialDate: curDate,
+        firstDate: DateTime(2003),
+        lastDate: DateTime(curDate.year +
+            1));
+    if (null != datePicked) {
+      setState(() {
+        widget.targetDate = datePicked;
+      });
+    }
+  }
+
+  _onTimeChange(context) async {
+    var curDate = DateTime.now();
+    if (null != widget.targetDate) {
+      curDate = widget.targetDate!!;
+    }
+    final initialTime = TimeOfDay(
+        hour: curDate.hour,
+        minute: curDate.minute);
+    final TimeOfDay? newTime = await showTimePicker(
+        context: context, initialTime: initialTime);
+    if (null != newTime) {
+      setState(() {
+        widget.targetDate = DateTime(
+            curDate.year, curDate.month, curDate.day, newTime.hour,
+            newTime.minute);
+      }
+      );
+    }
+  }
+
+  void _calc() {
+    var item = _valueController.text;
+    var v1 = 0.0;
+    var v2 = 0.0;
+    var tmp = "";
+    var op = "";
+    for (var i = 0; i < item.length; ++i) {
+      var c = item[i];
+      if ("%" == c || "*" == c || "/" == c || "-" == c || "+" == c) {
+        if (0 == op.length) {
+          v1 = double.parse(tmp);
+        } else {
+          v2 = double.parse(tmp);
+          if ("%" == op) {
+            v1 = v1 % v2;
+          } else if ("*" == op) {
+            v1 = v1 * v2;
+          } else if ("/" == op) {
+            v1 = v1 / v2;
+          } else if ("-" == op) {
+            v1 = v1 - v2;
+          } else if ("+" == op) {
+            v1 = v1 + v2;
+          }
+        }
+
+
+        tmp = "";
+        op = c;
+      } else {
+        tmp = tmp + c;
+      }
+    }
+    if (tmp.isNotEmpty) {
+      v2 = double.parse(tmp);
+      if ("%" == op) {
+        v1 = v1 % v2;
+      } else if ("*" == op) {
+        v1 = v1 * v2;
+      } else if ("/" == op) {
+        v1 = v1 / v2;
+      } else if ("-" == op) {
+        v1 = v1 - v2;
+      } else if ("+" == op) {
+        v1 = v1 + v2;
+      } else {
+        v1 = v2;
+      }
+    }
+    _valueController.text = v1.toString();
   }
 
   @override
@@ -52,154 +167,192 @@ class _EditTransactionState extends State<EditTransaction> {
     //
     // The Flutter framework has been optimized to make rerunning build methods
     // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
+
+    var curDate = DateTime.now();
+
+    if (null != widget.targetData) {
+      var data = widget.targetData!!;
+      _type =
+      (0 < data.value) ? _TransactionType.Income : _TransactionType.Payment;
+      _method = data.method;
+      _usage = data.usage;
+      _valueController = TextEditingController(text: data.value.abs().toString());
+      _noteController = TextEditingController(text: data.note);
+      curDate = data.transactionDate;
+    }
+    if (null != widget.targetDate) {
+      curDate = widget.targetDate!!;
+    }
+
     return Scaffold(
+
         appBar: AppBar(
           // Here we take the value from the MyHomePage object that was created by
           // the App.build method, and use it to set our appbar title.
           title: Text("Edit transaction"),
         ),
 
-        body: Column(
-            children: [Table(
-              border: TableBorder.all(color: Colors.white),
-
-              defaultVerticalAlignment: TableCellVerticalAlignment.top,
-
-              children: [
-
-
-                TableRow(
-                    children: [
-                      Text("Type"),
-                      Flexible(child:
-
-                      RadioListTile(
-                          title: Text("Income"),
-                          value: _TransactionType.Income,
-                          groupValue: _type,
-                          onChanged: _onTypeChanged)),
-                      Flexible(child: RadioListTile(
-                          title: Text("Payment"),
-                          value: _TransactionType.Payment,
-                          groupValue: _type,
-                          onChanged: _onTypeChanged))
-                    ]
-                ),
-                TableRow(
+        body:
+        Column(
+            children: [
+              Row(
                   children: [
-                    Text("Transaction date"),
-                    Text(
-                        "${this.widget.targetDate.year}/${this.widget.targetDate
-                            .month}/${this.widget.targetDate.day}"),
-                    ElevatedButton(
-                      child: Text("Change"),
-                      onPressed: () async {
-                        final DateTime? datePicked = await showDatePicker(
-                            context: context,
-                            initialDate: this.widget.targetDate,
-                            firstDate: DateTime(2003),
-                            lastDate: DateTime(this.widget.targetDate.year +
-                                1));
-                      },
-                    )
-                  ],
-                ),
-                TableRow(
-
-                  children: [
-                    Text("Transaction time"),
-                    Text(
-                        "${this.widget.targetDate.hour}:${this.widget.targetDate
-                            .minute.toString().padLeft(2, "0")}"),
-                    ElevatedButton(
-                      child: Text("Change"),
-                      onPressed: () async {
-                        final initialTime = TimeOfDay(
-                            hour: this.widget.targetDate.hour,
-                            minute: this.widget.targetDate.minute);
-                        final newTime = await showTimePicker(
-                            context: context, initialTime: initialTime);
-                      },
-                    )
-                  ],
-                ),
-                TableRow(
-
-                    children: [
-                      Text("Method"),
-                      DropdownButton<String>(
-                        value: _method,
-                        icon: Icon(Icons.arrow_drop_down),
-                        iconSize: 30,
-                        elevation: 16,
-                        style: TextStyle(fontSize: 20, color: Colors.black),
-                        underline: Container(
-                          height: 2,
-                          color: Colors.grey,
-                        ),
-                        onChanged: (newValue) {
-
-                        },
-                        items: MoneyBookManager.getMethods()
-                            .map<DropdownMenuItem<String>>((String value) {
-                          return DropdownMenuItem<String>(
-                            value: value,
-                            child: Text(value),
-                          );
-                        }).toList(),
-                      ),
-                      ElevatedButton(
-                        child: Text("Edit"),
-                        onPressed: () {
-                          Navigator.of(context).push(MaterialPageRoute(builder: (context) {
-                            return EditMethodUsages(title:"",true);
-                          }));
-                        },
-                      )
-                    ]
-                ),
-                TableRow(
-
-                    children: [
-                      Text("Usage"),
-                      DropdownButton<String>(
-                        value: _usage,
-                        icon: Icon(Icons.arrow_drop_down),
-                        iconSize: 30,
-                        elevation: 16,
-                        style: TextStyle(fontSize: 20, color: Colors.black),
-                        underline: Container(
-                          height: 2,
-                          color: Colors.grey,
-                        ),
-                        onChanged: (newValue) {
-                          setState(() {});
-                        },
-                        items: MoneyBookManager.getMethods()
-                            .map<DropdownMenuItem<String>>((String value) {
-                          return DropdownMenuItem<String>(
-                            value: value,
-                            child: Text(value),
-                          );
-                        }).toList(),
-                      ),
-                      ElevatedButton(
-                        child: Text("Edit"),
-                        onPressed: () {},
-                      )
-                    ]
-                ), TableRow(
-
-                    children: [
-                      Text("Value"),
-                      Flexible(child: TextField()), Spacer()
-                    ])
-              ],
-            ),
+                    Text("Type"),
+                    Flexible(child: RadioListTile(
+                        title: Text("In"),
+                        value: _TransactionType.Income,
+                        groupValue: _type,
+                        onChanged: _onTypeChanged)),
+                    Flexible(child: RadioListTile(
+                        title: Text("Pay"),
+                        value: _TransactionType.Payment,
+                        groupValue: _type,
+                        onChanged: _onTypeChanged))
+                  ]
+              ),
               Table(
                   children: [
                     TableRow(
+//                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text("Date"),
+
+                        Text(
+                            "${curDate.year}/${curDate
+                                .month}/${curDate.day}"),
+                        ElevatedButton(
+                          child: Text("Change"),
+                          onPressed: () {
+                            _onDateChange(context);
+                          },
+                        )
+                      ],
+                    ),
+                    TableRow(
+//                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text("Time"),
+                        Text(
+                            "${curDate.hour}:${curDate
+                                .minute.toString().padLeft(2, "0")}"),
+                        ElevatedButton(
+                          child: Text("Change"),
+                          onPressed: () {
+                            _onTimeChange(context);
+                          },
+                        )
+                      ],
+                    ),
+                    TableRow(
+//                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text("Method"),
+                          FutureBuilder(future:methodList,
+                            builder: (BuildContext context,
+                                AsyncSnapshot<List<String>> snapshot) {
+
+                            if (snapshot.hasData) {
+                              if(!snapshot.data!.isEmpty && !snapshot.data!.contains(_method)){
+                                _method=snapshot.data!.first;
+                              }
+                              return DropdownButton<String>(
+                                value: _method,
+
+                                onChanged: (newValue) {
+                                  setState(() {
+                                    if (null != newValue) {
+                                      _method = newValue;
+                                    }
+                                  });
+                                },
+                                items:
+                                  snapshot.data!.map<DropdownMenuItem<String>>((
+                                  String value) {
+                                    return DropdownMenuItem<String>(
+                                      value: value,
+                                    child: Text(value),
+                                  );
+                                }).toList()
+                            );
+                            }else {
+                              return DropdownButton<String>(
+                                  value:null,onChanged:(value){},items:[]);
+                            }
+                          }),
+                          ElevatedButton(
+                            child: Text("Edit"),
+                            onPressed: () async {
+                              _showEditMethodUsagesView(true);
+                            },
+                          )
+                        ]
+                    ),
+                    TableRow(
+                      //mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text("Usage"),
+                          FutureBuilder(future:usageList,
+                              builder: (BuildContext context,
+                                AsyncSnapshot<List<String>> snapshot) {
+                                if (snapshot.hasData) {
+                                  if(!snapshot.data!.isEmpty && !snapshot.data!.contains(_usage)){
+                                    _usage=snapshot.data!.first;
+                                  }
+
+                                  return DropdownButton<String>(
+                                    value: _usage,
+
+                                    onChanged: (newValue) {
+                                      setState(() {
+                                        if (null != newValue) {
+                                          _usage = newValue;
+                                        }
+                                      });
+                                    },
+                                    items:
+                                    snapshot.data!.map<DropdownMenuItem<
+                                        String>>((String value) {
+                                      return DropdownMenuItem<String>(
+                                        value: value,
+                                        child: Text(value),
+                                      );
+                                    }).toList(),
+                                  );
+                                } else {
+                                  return DropdownButton<String>(
+                                      value:null,onChanged:(value){},items:[]);
+                                }
+                              }
+                              ),
+                          ElevatedButton(
+                            child: Text("Edit"),
+                            onPressed: () {
+                                _showEditMethodUsagesView(false);
+                              },
+                          )
+                        ]
+                    ),]),
+                    Row(
+
+                        children: [
+                          Text("Value"),
+                          Spacer(),
+                          Text(Transaction.formatter.currencySymbol),
+                          Flexible(child: TextField(controller: _valueController
+                          )),
+                          Spacer()
+                        ]),
+                   Row(
+
+                        children: [
+                          Text("Note"),
+                          Spacer(),
+                          Flexible(child: TextField(controller: _noteController,)),
+                          Spacer()
+                        ]),
+              Table(
+                  children: [
+     TableRow(
                         children: [
                           ElevatedButton(
                             child: Text("%"),
@@ -207,111 +360,137 @@ class _EditTransactionState extends State<EditTransaction> {
                           ),
                           ElevatedButton(
                             child: Text("AC"),
-                            onPressed: () {},
+                            onPressed: () {
+                              _valueController.text = "0";
+                            },
                           ),
                           ElevatedButton(
                             child: Text("BS"),
-                            onPressed: () {},
+                            onPressed: () {
+                              var text = _valueController.text;
+                              if (0 < text.length) {
+                                _valueController.text =
+                                    text.substring(0, text.length - 1);
+                              } else {
+                                _valueController.text = "0";
+                              }
+                            },
                           ),
                           ElevatedButton(
                             child: Text("/"),
-                            onPressed: () {},
+                            onPressed: () {
+                              _onValueAdded("/");
+                            },
                           ),
 
                         ]
                     ),
-                    TableRow(
+                              TableRow(
                         children: [
                           ElevatedButton(
                             child: Text("7"),
-                            onPressed: () {},
+                            onPressed: () {
+                              _onValueAdded("7");
+                            },
                           ),
                           ElevatedButton(
                             child: Text("8"),
-                            onPressed: () {},
+                            onPressed: () {
+                              _onValueAdded("8");
+                            },
                           ),
                           ElevatedButton(
                             child: Text("9"),
-                            onPressed: () {},
+                            onPressed: () {
+                              _onValueAdded("9");
+                            },
                           ),
                           ElevatedButton(
                             child: Text("*"),
-                            onPressed: () {},
+                            onPressed: () {
+                              _onValueAdded("*");
+                            },
                           ),
 
                         ]
                     ),
-                    TableRow(
+                       TableRow(
                         children: [
                           ElevatedButton(
                             child: Text("4"),
-                            onPressed: () {},
+                            onPressed: () {
+                              _onValueAdded("4");
+                            },
                           ),
                           ElevatedButton(
                             child: Text("5"),
-                            onPressed: () {},
+                            onPressed: () {
+                              _onValueAdded("5");
+                            },
                           ),
                           ElevatedButton(
                             child: Text("6"),
-                            onPressed: () {},
+                            onPressed: () {
+                              _onValueAdded("6");
+                            },
                           ),
                           ElevatedButton(
                             child: Text("-"),
-                            onPressed: () {},
+                            onPressed: () {
+                              _onValueAdded("-");
+                            },
                           )
                         ]),
-                    TableRow(
+                     TableRow(
                         children: [
                           ElevatedButton(
                             child: Text("1"),
-                            onPressed: () {},
+                            onPressed: () {
+                              _onValueAdded("1");
+                            },
                           ),
                           ElevatedButton(
                             child: Text("2"),
-                            onPressed: () {},
+                            onPressed: () {
+                              _onValueAdded("2");
+                            },
                           ),
                           ElevatedButton(
                             child: Text("3"),
-                            onPressed: () {},
+                            onPressed: () {
+                              _onValueAdded("3");
+                            },
                           ),
                           ElevatedButton(
                             child: Text("+"),
-                            onPressed: () {},
+                            onPressed: () {
+                              _onValueAdded("+");
+                            },
                           )
-                        ]), TableRow(
+                        ]),
+    TableRow(
                       children: [
                         ElevatedButton(
                           child: Text("0"),
-                          onPressed: () {},
+                          onPressed: () {
+                            _onValueAdded("0");
+                          },
                         ),
                         ElevatedButton(
                           child: Text("."),
-                          onPressed: () {},
+                          onPressed: () {
+                            _onValueAdded(".");
+                          },
                         ),
-                        Spacer(),
+                        Text(""),
                         ElevatedButton(
                           child: Text("="),
-                          onPressed: () {},
+                          onPressed: () {
+                            _calc();
+                          },
                         ),
                       ],
-                    ),
-                    TableRow(
-                      children: [
-                        ElevatedButton(
-                          child: Text("0"),
-                          onPressed: () {},
-                        ),
-                        ElevatedButton(
-                          child: Text("."),
-                          onPressed: () {},
-                        ),
-                        Spacer(),
-                        ElevatedButton(
-                          child: Text("="),
-                          onPressed: () {},
-                        ),
-                      ],
-                    ),
+                    ),//*/
 
                   ]),
               Spacer(),
@@ -320,21 +499,67 @@ class _EditTransactionState extends State<EditTransaction> {
                   children: [
                     ElevatedButton(
                       child: Text("OK"),
-                      onPressed: () {},
+                      onPressed: () {
+
+                        _calc();
+                        var dateTarget = DateTime.now();
+                        var value=double.parse(_valueController.text).toInt();
+                        value=_TransactionType.Payment== _type?-value:value;
+                        if (null == widget.targetData) {
+
+                          if (null != widget.targetDate) {
+                            dateTarget = widget.targetDate!!;
+                          }
+
+
+                          //assert(0 != int.parse(_valueController.text));
+                          var data = Transaction(Uuid().v1(),
+                              dateTarget, _method, _usage,
+                              value,
+                              _noteController.text);
+                          widget.targetData = data;
+                        }else{
+                          var data=widget.targetData!!;
+
+                          data.transactionDate=dateTarget;
+                          data.method=_method;
+                          data.usage=_usage;
+                          data.value=value;
+                          data.note=_noteController.text;
+
+
+                        }
+
+
+                        MoneyBookManager.getManager().add(widget.targetData!!);
+                        //MoneyBookManager.getManager().save2Local();
+                        Navigator.of(context).pop();
+                      },
                     ),
                     ElevatedButton(
                       child: Text("CANCEL"),
-                      onPressed: () {},
+                      onPressed: () {
+
+                        Navigator.of(context).pop();
+                      },
                     ),
                     Spacer(),
                     ElevatedButton(
                       child: Text("Delete"),
-                      onPressed: () {},
+
+                      onPressed:null!=widget.targetData? () {
+                        if(null!=widget.targetData){
+                          MoneyBookManager.getManager().delete(widget.targetData!);
+                          Navigator.of(context).pop();
+                        }
+
+                      }:null,
                     )
                   ]),
+
             ])
 
     );
   }
 
-}
+    }

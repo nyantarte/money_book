@@ -7,6 +7,7 @@ class App{
     state_stack=[new OpenMenuState()];/*!遷移状態を管理するスタック*/
     current_date=new Date();          /*!表示対象となる取引記録を指定するための日付*/
     data=new MoneyBook();             /*!家計簿データ*/
+    selected_transactions=[];
     static SAVE_LOAD_POS_TBL=["Local storage"]; /*!データの保存先一覧 */
     static FMT_NAME_TBL=["独自形式","楽な家計簿"];/*!取り扱えるデータのフォーマット*/
 
@@ -44,22 +45,31 @@ class App{
         app.get_state().init();//戻した状態を初期化する
     }
 
+
+    conv_current_date_string_for_input(){
+        //年を取得し、inputが受け入れる形式へ変換
+        return this.get_date_string_for_input(this.current_date);
+    }
+    conv_current_time_string_for_input(){
+        //年を取得し、inputが受け入れる形式へ変換
+        return this.get_time_string_for_input(this.current_date);
+    }
     /**
      * 
      * @returns 参照日時からHTMLのinput要素が解釈できる日付の値を返す
      */
-    get_date_string_for_input(){
-        var tmp=this.current_date.getFullYear();  //年を取得
-        if(9>this.current_date.getMonth()){       //月が一の位のみだったら月の先頭に"-0"を追加
-            tmp=tmp+"-0"+(this.current_date.getMonth()+1);
+    get_date_string_for_input(target_date){
+        var tmp=target_date.getFullYear();  
+        if(9>target_date.getMonth()){       //月が一の位のみだったら月の先頭に"-0"を追加
+            tmp=tmp+"-0"+(target_date.getMonth()+1);
         }else{
-            tmp=tmp+"-"+(this.current_date.getMonth()+1);//それ以外は月の先頭に"-"を追加
+            tmp=tmp+"-"+(target_date.getMonth()+1);//それ以外は月の先頭に"-"を追加
         }
 
-        if(9>this.current_date.getDay()){//日が一の位のみだったら日の先頭に"-0"を追加
-            tmp=tmp+"-0"+(this.current_date.getDay()+1);
+        if(9>target_date.getDay()){//日が一の位のみだったら日の先頭に"-0"を追加
+            tmp=tmp+"-0"+(target_date.getDay()+1);
         }else{
-            tmp=tmp+"-"+(this.current_date.getDay()+1);//それ以外は日の先頭に"-"を追加
+            tmp=tmp+"-"+(target_date.getDay()+1);//それ以外は日の先頭に"-"を追加
         }
         return tmp;
     }
@@ -67,18 +77,18 @@ class App{
      * 
      * @returns 参照日時からHTMLのinput要素が解釈できる時刻の値を返す
      */
-    get_time_string_for_input(){
+    get_time_string_for_input(target_date){
         var tmp="";
-        if(10>this.current_date.getHours()){//時間が一の位のみだったら月の先頭に"0"を追加
-            tmp="0"+(this.current_date.getHours());
+        if(10>target_date.getHours()){//時間が一の位のみだったら月の先頭に"0"を追加
+            tmp="0"+(target_date.getHours());
         }else{
-            tmp=(this.current_date.getHours());
+            tmp=(target_date.getHours());
         }
 
-        if(10>this.current_date.getMinutes()){//分が一の位のみだったら月の先頭に":0"を追加
-            tmp=tmp+":0"+(this.current_date.getMinutes());
+        if(10>target_date.getMinutes()){//分が一の位のみだったら月の先頭に":0"を追加
+            tmp=tmp+":0"+(target_date.getMinutes());
         }else{
-            tmp=tmp+":"+(this.current_date.getMinutes());//分が2桁だったら月の先頭に":"を追加
+            tmp=tmp+":"+(target_date.getMinutes());//分が2桁だったら月の先頭に":"を追加
         }
         return tmp;
     }

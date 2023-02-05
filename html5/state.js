@@ -12,26 +12,41 @@ class State{
 
     }
     create_main_menu(){
-        var menu_tbl=document.createElement("menu");
-        menu_tbl.type="toolbar";
+        
         var item=document.createElement("input");
         item.type="button";
         item.onclick=this.#on_monthly_click;
         item.value="Monthly";
-        menu_tbl.appendChild(item);
+        document.body.appendChild(item);
         item=document.createElement("input");
         item.type="button";
         item.value="Daily";
-        menu_tbl.appendChild(item);
-        document.body.appendChild(menu_tbl);
-        menu_tbl.appendChild(item);
+        document.body.appendChild(item);
+        
+        
         item=document.createElement("input");
         item.type="button";
         item.value="Save";
         item.onclick=this.#on_save_click;
-        menu_tbl.appendChild(item);
+         
+        document.body.appendChild(item);
+        document.body.appendChild(document.createElement("br"));
+        
+
     
 
+    }
+    create_command_menu(){
+        var item=document.createElement("input");
+        item.type="button";
+        item.value="edit";
+        item.onclick=this.edit_transaction;
+        document.body.appendChild(item);
+        item=document.createElement("input");
+        item.type="button";
+        item.value="delete";
+        document.body.appendChild(item);
+        document.body.appendChild(document.createElement("br"));
     }
     edit_method(){
         app.set_mode(new EditMethodListState());
@@ -42,6 +57,8 @@ class State{
        
 
     }
+    edit_transaction(){}
+
     #on_monthly_click(){
         app.set_mode(MODE_MONTHLY_LIST);
         init();
