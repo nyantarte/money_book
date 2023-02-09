@@ -40,7 +40,7 @@ class _ImportExportFileViewState extends State<ImportExportFileView> {
       FilePickerResult? result = await FilePicker.platform.pickFiles();
 
       if (result != null) {
-        var data = result.files.single.bytes;
+        var data = kIsWeb? result.files.single.bytes:await File(result.files.single.path!).readAsBytes();
 
         var supIdx = 0;
         if (_supportTypes[supIdx] == _curType) {
@@ -65,37 +65,55 @@ class _ImportExportFileViewState extends State<ImportExportFileView> {
               row[4]!.value.toString());
           MoneyBookManager.getManager().add(trans);
         }*/
+
           var scr = utf8.decode(String
-              .fromCharCodes(data!!)
+              .fromCharCodes( data!!)
               .runes
               .toList());
           var rows = scr.split("\n");
           var rowIdx = 1;
           var methods = await MoneyBookManager.getManager().getMethods();
           var usages = await MoneyBookManager.getManager().getUsages();
+          print(rows.length);
+
           while (rowIdx < rows.length) {
-            var line = rows[rowIdx++].split(",");
+            var strLine=rows[rowIdx++];
+            if(1>=strLine.length) {
+              break;
+            }
+            var line = strLine.split(",");
             if (1 == line.length)
               break;
 
 
-            var value = int.parse(line[5].toString());
+            var value = int.parse(line[5]);
+            var transDate=DateTime.now();
+            try {
+              transDate=DateFormat("yyyy/MM/dd HH:mm:ss").parse(line[0]);
+            }catch(e){
+              transDate=DateFormat("yyyy/MM/dd").parse(line[0]);
+
+            }
             var trans = Transaction(
-                uuid.v1(), DateFormat("yyyy/MM/dd HH:mm:ss").parse(line[0]),
-                line[1].toString(),
-                line[2].toString(),
+                uuid.v1(),transDate,
+                line[1],
+                line[2],
                 "支出" == line[6] ? -value : value,
-                line[4].toString());
+                line[4]);
+            print("[$rowIdx] $trans");
             MoneyBookManager.getManager().add(trans);
             if (methods.contains(trans.method)) {
-              methods.add(trans.method);
+              MoneyBookManager.getManager().addMethod(trans.method);
+              methods = await MoneyBookManager.getManager().getMethods();
             }
             if (usages.contains(trans.usage)) {
-              usages.add(trans.usage);
+              MoneyBookManager.getManager().addUsage(trans.usage);
+              usages = await MoneyBookManager.getManager().getUsages();
             }
           }
         }
       }
+      print("Import end");
     }else {
       String csv =await MoneyBookManager.getManager().convToCSV();
       if (kIsWeb) {

@@ -96,6 +96,9 @@ class _MonthlyListViewState extends State<MontlyListView> {
 
   @override
   Widget build(BuildContext context) {
+    var mediaQueryData = MediaQuery.of(context);
+    var screenWidth = mediaQueryData.size.width;
+    var screenHeight = mediaQueryData.size.height;
     var dateRangeText = "";
 
     dateRangeText = beginDateRange.year.toString() + "/" +
@@ -208,6 +211,22 @@ class _MonthlyListViewState extends State<MontlyListView> {
                 builder: (BuildContext context,
                     AsyncSnapshot<List<Transaction>> snapshot) {
                   if (snapshot.hasData) {
+
+
+                    var ioTbl=HashMap();
+                    for(var t in snapshot.data!){
+                      var tDate=DateTime(t.transactionDate.year,t.transactionDate.month,t.transactionDate.day);
+                      if(!ioTbl.containsKey(tDate)){
+                        ioTbl[tDate]=[0,0];
+                      }
+                      if(0 <= t.value){
+                        ioTbl[tDate][0]+=t.value;
+                      }else{
+                        ioTbl[tDate][1]+=t.value.abs();
+
+                      }
+                    }
+
                     var wList = List<Widget>.empty(growable: true);
                     var prevDate = beginDateRange.subtract(const Duration(days: 1));
                     for (var index = 0; index <
@@ -222,7 +241,7 @@ class _MonthlyListViewState extends State<MontlyListView> {
                         wList.add(
                             ListTile(
                                 tileColor: Colors.grey,
-                                title: Text("${_dateFormat.format(prevDate)}",
+                                title: Text("${_dateFormat.format(prevDate)} 収入 ${ioTbl[prevDate][0]} 支出 ${ioTbl[prevDate][1]} ",
                                     style: TextStyle(color: Colors.white))));
                       }
                       wList.add(
@@ -252,9 +271,11 @@ class _MonthlyListViewState extends State<MontlyListView> {
                               }));
 
                     }
-                    return ListView(shrinkWrap: true, children: wList);
+                    return SizedBox(
+                        width:screenWidth,
+                        height:screenHeight*0.8, child:ListView(shrinkWrap: true, children: wList));
                   } else {
-                    return Spacer();
+                    return ListView(shrinkWrap: true);
                   }
                 })
 

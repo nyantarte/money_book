@@ -3,7 +3,7 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:localstorage/localstorage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import 'package:uuid/uuid_util.dart';
 import 'package:sqflite/sqflite.dart';
@@ -19,6 +19,10 @@ class Transaction{
   static final formatter = NumberFormat.currency(locale: "ja",symbol: "￥");
   Transaction(this.uuid,this.transactionDate,this.method,this.usage,this.value,this.note);
 
+  static Transaction fromCSV(String csv){
+    var params=csv.split(",");
+    return Transaction(params[0], DateTime.parse(params[1]), params[2], params[3], double.parse(params[4]).toInt(), params[5]);
+  }
   @override
   String toString(){
     return "${transactionDate.year}/${transactionDate.month}/${transactionDate.day} ${transactionDate.hour}:${transactionDate.minute.toString().padLeft(2, "0")} $method $usage ${formatter.format(value.abs())}";
@@ -26,7 +30,10 @@ class Transaction{
 
 
   String convToCSV(){
-    return "$uuid,${transactionDate.toIso8601String()},$method,$usage,$value,$note";
+
+      return "$uuid,${transactionDate
+          .toIso8601String()},$method,$usage,$value,$note";
+
   }
 
   Map<String,dynamic> toMap(){
@@ -74,12 +81,13 @@ abstract class MoneyBookManager {
   void deleteUsage(String u);
   void delete(Transaction t);
   void clear();
+  Future<List<Transaction>> _getData();
   Future<List<Transaction>> getData(DateTime b,DateTime e) ;
   Future<List<String>> getMethods();
 
   Future<List<String>> getUsages();
 
-  Future<List<Transaction>> _getData();
+
 
   Future<String> convToCSV() async{
     var result="";
@@ -113,102 +121,119 @@ abstract class MoneyBookManager {
 }
 
 class LocalMoneyBookManager extends MoneyBookManager{
-  var _data = List<Transaction>.empty(growable: true);
-  var _methods = List<String>.empty(growable: true);
-  var _usages = List<String>.empty(growable: true);
 
 
 
 
-  LocalMoneyBookManager(){
-    if(kIsWeb){
-      final storage=LocalStorage("moneybook");
-      var csv=storage.getItem("data");
-      if(null!=csv) {
-        loadFromCSV(csv);
-      }
-    }
-  }
+
 
 
   @override
-  void clear() {
-    _data.clear();
+  void clear() async{
+    final prefs = await SharedPreferences.getInstance();
+    prefs.clear();
   }
 
   @override
   Future<void> add(Transaction t) async {
-    var idx=_data.indexWhere((element) => t.uuid==element.uuid);
-    if(-1==idx) {
-      _data.add(t);
-    }
-    save2Local();
-  }
-  @override
-  void addMethod(String m){
-    _methods.add(m);
-  }
-  @override
-  void deleteMethod(String m){
-    _methods.remove(m);
-  }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(t.uuid, t.convToCSV());
 
-  @override
-  void addUsage(String u){
-    _usages.add(u);
   }
   @override
-  void deleteUsage(String u){
-    _usages.remove(u);
+  void addMethod(String m)async{
+    final prefs = await SharedPreferences.getInstance();
+    var methods=prefs.getStringList("methods");
+    if(null==methods){
+      await prefs.setStringList("methods", <String>[m]);
+    }else{
+      methods.add(m);
+      await prefs.setStringList("methods", methods);
+
+    }
+
   }
   @override
-  void delete(Transaction t){
-    var idx=_data.indexWhere((element) => t.uuid==element.uuid);
-    if(-1!=idx) {
-      _data.removeAt(idx);
-      save2Local();
+  void deleteMethod(String m)async{
+    final prefs = await SharedPreferences.getInstance();
+    var methods=prefs.getStringList("methods");
+    if(null!=methods) {
+      methods.remove(m);
+      await prefs.setStringList("methods", methods);
     }
   }
+
   @override
-  Future<List<String>> getMethods(){
-    return Future.value(_methods);
+  void addUsage(String u)async{
+    final prefs = await SharedPreferences.getInstance();
+    var usages=prefs.getStringList("usages");
+    if(null==usages){
+      await prefs.setStringList("usages", <String>[u]);
+    }else{
+      usages.add(u);
+      await prefs.setStringList("usages", usages);
+
+    }
+  }
+  @override
+  void deleteUsage(String u)async{
+    final prefs = await SharedPreferences.getInstance();
+    var methods=prefs.getStringList("usages");
+    if(null!=methods) {
+      methods.remove(u);
+      await prefs.setStringList("usages", methods);
+    }
+  }
+  @override
+  void delete(Transaction t)async{
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(t.uuid);
+  }
+  @override
+  Future<List<String>> getMethods()async{
+    final prefs = await SharedPreferences.getInstance();
+    var methods=prefs.getStringList("methods");
+    return Future.value(null!=methods?methods:<String>[]);
+
   }
 
   @override
-  Future<List<String>> getUsages(){
-    return Future.value(_usages);
+  Future<List<String>> getUsages()async{
+    final prefs = await SharedPreferences.getInstance();
+    var methods=prefs.getStringList("usages");
+    return Future.value(null!=methods?methods:<String>[]);
   }
 
   @override
-  Future<List<Transaction>> _getData(){
-    return Future.value(_data);
-  }
-  @override
-  Future<List<Transaction>> getData(DateTime b,DateTime e) async{
-    var r=List<Transaction>.empty(growable: true);
+  Future<List<Transaction>> _getData()async{
+    final prefs = await SharedPreferences.getInstance();
+    var result=List<Transaction>.empty(growable: true);
 
-    _data.sort((a, b) => a.transactionDate.compareTo(b.transactionDate));
+      for(var k in prefs.getKeys()){
+        if("methods"!=k && "usages"!=k){
 
-    for(var t in _data){
+          result.add(Transaction.fromCSV(prefs.getString(k)!!));
+        }
 
-      if(0<=t.transactionDate.compareTo(e)){
-        break;
-      }else if(0<=t.transactionDate.compareTo(b) && 0>=t.transactionDate.compareTo(e)){
-        r.add(t);
       }
 
-    }
-    return r;
+
+    
+    return Future<List<Transaction>>.value(result);
   }
 
+  @override
+  Future<List<Transaction>> getData(DateTime b,DateTime e) async{
+    var list=await _getData();
+    var result=List<Transaction>.empty(growable: true);
+    for(var t in list){
+      if(0<=t.transactionDate.compareTo(b) && 0>=t.transactionDate.compareTo(e)){
+        result.add(t);
 
-  void save2Local()async {
-    if(kIsWeb){
-      var csv=await convToCSV();
-      final storage=LocalStorage("moneybook");
-      storage.setItem("data",csv);
-
+      }
+      print(t);
     }
+    return Future<List<Transaction>>.value(result);
   }
 
 
@@ -245,11 +270,10 @@ class SqliteMoneyBookManager extends MoneyBookManager {
 
 
 
-
   @override
   void clear() async{
 
-      await _sqliteDB!!.delete("moneybook");
+    await _sqliteDB!!.delete("moneybook");
 
 
 
@@ -345,6 +369,4 @@ class SqliteMoneyBookManager extends MoneyBookManager {
 
     return r;
   }
-
-
 }

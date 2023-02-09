@@ -33,8 +33,8 @@ class _EditTransactionState extends State<EditTransaction> {
   var _usage = "";
   var _valueController = TextEditingController(text: "0");
   var _noteController = TextEditingController();
-  Future<List<String>> methodList=Future(() => List.empty());
-  Future<List<String>> usageList=Future(() => List.empty());
+  Future<List<String>> methodList = Future(() => List.empty());
+  Future<List<String>> usageList = Future(() => List.empty());
 
   _onTypeChanged(value) {
     setState(() {
@@ -48,18 +48,14 @@ class _EditTransactionState extends State<EditTransaction> {
           return EditMethodUsages(title: "", isMethod);
         }));
 
-    if(isMethod){
-      methodList= MoneyBookManager.getManager().getMethods();
-
-
-
-    }else{
-      usageList= MoneyBookManager.getManager().getUsages();
+    if (isMethod) {
+      methodList = MoneyBookManager.getManager().getMethods();
+    } else {
+      usageList = MoneyBookManager.getManager().getUsages();
     }
 
 
-    setState(() {
-    });
+    setState(() {});
   }
 
   _onValueAdded(String valueAdded) {
@@ -176,7 +172,8 @@ class _EditTransactionState extends State<EditTransaction> {
       (0 < data.value) ? _TransactionType.Income : _TransactionType.Payment;
       _method = data.method;
       _usage = data.usage;
-      _valueController = TextEditingController(text: data.value.abs().toString());
+      _valueController =
+          TextEditingController(text: data.value.abs().toString());
       _noteController = TextEditingController(text: data.note);
       curDate = data.transactionDate;
     }
@@ -193,7 +190,9 @@ class _EditTransactionState extends State<EditTransaction> {
         ),
 
         body:
-        Column(
+        SingleChildScrollView(
+            child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               Row(
                   children: [
@@ -229,7 +228,6 @@ class _EditTransactionState extends State<EditTransaction> {
                       ],
                     ),
                     TableRow(
-//                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text("Time"),
                         Text(
@@ -247,38 +245,41 @@ class _EditTransactionState extends State<EditTransaction> {
 //                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text("Method"),
-                          FutureBuilder(future:methodList,
-                            builder: (BuildContext context,
-                                AsyncSnapshot<List<String>> snapshot) {
+                          FutureBuilder(future: methodList,
+                              builder: (BuildContext context,
+                                  AsyncSnapshot<List<String>> snapshot) {
+                                if (snapshot.hasData) {
+                                  if (!snapshot.data!.isEmpty && !snapshot.data!
+                                      .contains(_method)) {
+                                    _method = snapshot.data!.first;
+                                  }
+                                  return DropdownButton<String>(
+                                      value: _method,
 
-                            if (snapshot.hasData) {
-                              if(!snapshot.data!.isEmpty && !snapshot.data!.contains(_method)){
-                                _method=snapshot.data!.first;
-                              }
-                              return DropdownButton<String>(
-                                value: _method,
-
-                                onChanged: (newValue) {
-                                  setState(() {
-                                    if (null != newValue) {
-                                      _method = newValue;
-                                    }
-                                  });
-                                },
-                                items:
-                                  snapshot.data!.map<DropdownMenuItem<String>>((
-                                  String value) {
-                                    return DropdownMenuItem<String>(
-                                      value: value,
-                                    child: Text(value),
+                                      onChanged: (newValue) {
+                                        setState(() {
+                                          if (null != newValue) {
+                                            _method = newValue;
+                                          }
+                                        });
+                                      },
+                                      items:
+                                      snapshot.data!.map<
+                                          DropdownMenuItem<String>>((
+                                          String value) {
+                                        return DropdownMenuItem<String>(
+                                          value: value,
+                                          child: Text(value),
+                                        );
+                                      }).toList()
                                   );
-                                }).toList()
-                            );
-                            }else {
-                              return DropdownButton<String>(
-                                  value:null,onChanged:(value){},items:[]);
-                            }
-                          }),
+                                } else {
+                                  return DropdownButton<String>(
+                                      value: null,
+                                      onChanged: (value) {},
+                                      items: []);
+                                }
+                              }),
                           ElevatedButton(
                             child: Text("Edit"),
                             onPressed: () async {
@@ -291,12 +292,13 @@ class _EditTransactionState extends State<EditTransaction> {
                       //mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text("Usage"),
-                          FutureBuilder(future:usageList,
+                          FutureBuilder(future: usageList,
                               builder: (BuildContext context,
-                                AsyncSnapshot<List<String>> snapshot) {
+                                  AsyncSnapshot<List<String>> snapshot) {
                                 if (snapshot.hasData) {
-                                  if(!snapshot.data!.isEmpty && !snapshot.data!.contains(_usage)){
-                                    _usage=snapshot.data!.first;
+                                  if (!snapshot.data!.isEmpty && !snapshot.data!
+                                      .contains(_usage)) {
+                                    _usage = snapshot.data!.first;
                                   }
 
                                   return DropdownButton<String>(
@@ -320,39 +322,42 @@ class _EditTransactionState extends State<EditTransaction> {
                                   );
                                 } else {
                                   return DropdownButton<String>(
-                                      value:null,onChanged:(value){},items:[]);
+                                      value: null,
+                                      onChanged: (value) {},
+                                      items: []);
                                 }
                               }
-                              ),
+                          ),
                           ElevatedButton(
                             child: Text("Edit"),
                             onPressed: () {
-                                _showEditMethodUsagesView(false);
-                              },
+                              _showEditMethodUsagesView(false);
+                            },
                           )
                         ]
-                    ),]),
-                    Row(
+                    ),
+                  ]),
+              Row(
 
-                        children: [
-                          Text("Value"),
-                          Spacer(),
-                          Text(Transaction.formatter.currencySymbol),
-                          Flexible(child: TextField(controller: _valueController
-                          )),
-                          Spacer()
-                        ]),
-                   Row(
+                  children: [
+                    Text("Value"),
+                    Spacer(),
+                    Text(Transaction.formatter.currencySymbol),
+                    Flexible(child: TextField(controller: _valueController
+                    )),
+                    Spacer()
+                  ]),
+              Row(
 
-                        children: [
-                          Text("Note"),
-                          Spacer(),
-                          Flexible(child: TextField(controller: _noteController,)),
-                          Spacer()
-                        ]),
+                  children: [
+                    Text("Note"),
+                    Spacer(),
+                    Flexible(child: TextField(controller: _noteController,)),
+                    Spacer()
+                  ]),
               Table(
                   children: [
-     TableRow(
+                    TableRow(
                         children: [
                           ElevatedButton(
                             child: Text("%"),
@@ -385,7 +390,7 @@ class _EditTransactionState extends State<EditTransaction> {
 
                         ]
                     ),
-                              TableRow(
+                    TableRow(
                         children: [
                           ElevatedButton(
                             child: Text("7"),
@@ -414,7 +419,7 @@ class _EditTransactionState extends State<EditTransaction> {
 
                         ]
                     ),
-                       TableRow(
+                    TableRow(
                         children: [
                           ElevatedButton(
                             child: Text("4"),
@@ -441,7 +446,7 @@ class _EditTransactionState extends State<EditTransaction> {
                             },
                           )
                         ]),
-                     TableRow(
+                    TableRow(
                         children: [
                           ElevatedButton(
                             child: Text("1"),
@@ -468,7 +473,7 @@ class _EditTransactionState extends State<EditTransaction> {
                             },
                           )
                         ]),
-    TableRow(
+                    TableRow(
                       children: [
                         ElevatedButton(
                           child: Text("0"),
@@ -490,10 +495,10 @@ class _EditTransactionState extends State<EditTransaction> {
                           },
                         ),
                       ],
-                    ),//*/
+                    ), //*/
 
                   ]),
-              Spacer(),
+
               Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
@@ -556,10 +561,9 @@ class _EditTransactionState extends State<EditTransaction> {
                       }:null,
                     )
                   ]),
-
-            ])
+            ]))
 
     );
   }
 
-    }
+}
