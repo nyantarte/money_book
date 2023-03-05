@@ -9,6 +9,7 @@ import 'package:uuid/uuid_util.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:intl/intl.dart';
+
 class Transaction{
   String uuid;
   DateTime transactionDate=DateTime.now();
@@ -16,17 +17,16 @@ class Transaction{
   String usage="";
   int value=0;
   String note="";
-  static final formatter = NumberFormat.currency(locale: "ja",symbol: "￥");
+
+
+
   Transaction(this.uuid,this.transactionDate,this.method,this.usage,this.value,this.note);
 
   static Transaction fromCSV(String csv){
     var params=csv.split(",");
     return Transaction(params[0], DateTime.parse(params[1]), params[2], params[3], double.parse(params[4]).toInt(), params[5]);
   }
-  @override
-  String toString(){
-    return "${transactionDate.year}/${transactionDate.month}/${transactionDate.day} ${transactionDate.hour}:${transactionDate.minute.toString().padLeft(2, "0")} $method $usage ${formatter.format(value.abs())}";
-  }
+
 
 
   String convToCSV(){
@@ -75,9 +75,13 @@ abstract class MoneyBookManager {
   }
 
   void add(Transaction t);
+  void addRange(List<Transaction> tList);
+
   void addMethod(String m);
+  void addRangeMethod(List<String> mList);
   void deleteMethod(String m);
   void addUsage(String u);
+  void addRangeUsage(List<String> uList);
   void deleteUsage(String u);
   void delete(Transaction t);
   void clear();
@@ -141,6 +145,15 @@ class LocalMoneyBookManager extends MoneyBookManager{
 
   }
   @override
+  Future<void> addRange(List<Transaction> tList)async {
+    final prefs = await SharedPreferences.getInstance();
+    for(var t in tList){
+        await prefs.setString(t.uuid, t.convToCSV());
+
+    }
+  }
+
+  @override
   void addMethod(String m)async{
     final prefs = await SharedPreferences.getInstance();
     var methods=prefs.getStringList("methods");
@@ -153,6 +166,20 @@ class LocalMoneyBookManager extends MoneyBookManager{
     }
 
   }
+  @override
+  void addRangeMethod(List<String> mList)async{
+    final prefs = await SharedPreferences.getInstance();
+    var methods=prefs.getStringList("methods");
+    if(null==methods){
+      await prefs.setStringList("methods", mList);
+    }else{
+      methods.addAll(mList);
+      await prefs.setStringList("methods", methods);
+
+    }
+
+  }
+
   @override
   void deleteMethod(String m)async{
     final prefs = await SharedPreferences.getInstance();
@@ -171,6 +198,18 @@ class LocalMoneyBookManager extends MoneyBookManager{
       await prefs.setStringList("usages", <String>[u]);
     }else{
       usages.add(u);
+      await prefs.setStringList("usages", usages);
+
+    }
+  }
+  @override
+  void addRangeUsage(List<String> uList)async {
+    final prefs = await SharedPreferences.getInstance();
+    var usages=prefs.getStringList("usages");
+    if(null==usages){
+      await prefs.setStringList("usages", uList);
+    }else{
+      usages.addAll(uList);
       await prefs.setStringList("usages", usages);
 
     }
@@ -217,6 +256,8 @@ class LocalMoneyBookManager extends MoneyBookManager{
 
       }
 
+      result.sort((a,b)=>a.transactionDate.compareTo(b.transactionDate) );
+
 
     
     return Future<List<Transaction>>.value(result);
@@ -231,8 +272,9 @@ class LocalMoneyBookManager extends MoneyBookManager{
         result.add(t);
 
       }
-      print(t);
+
     }
+    result.sort((a,b)=>a.transactionDate.compareTo(b.transactionDate) );
     return Future<List<Transaction>>.value(result);
   }
 
@@ -284,11 +326,31 @@ class SqliteMoneyBookManager extends MoneyBookManager {
     await _sqliteDB!!.insert(
         "moneybook", t.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
   }
-
+  @override
+  void addRange(List<Transaction> tList)async {
+    await _sqliteDB!!.transaction((txn) async{
+      for (var t in tList) {
+        txn.insert(
+            "moneybook", t.toMap(),
+            conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+    });
+  }
   @override
   void addMethod(String m) async {
     await _sqliteDB!!.insert(
         "methods", {"key": m}, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  @override
+  void addRangeMethod(List<String> mList) async {
+    await _sqliteDB!!.transaction((txn) async {
+      for(var m in mList) {
+        txn.insert(
+            "methods", {"key": m},
+            conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+    });
   }
 
   @override
@@ -301,7 +363,15 @@ class SqliteMoneyBookManager extends MoneyBookManager {
     await _sqliteDB!!.insert(
         "usages", {"key": u}, conflictAlgorithm: ConflictAlgorithm.replace);
   }
-
+  @override
+  void addRangeUsage(List<String> uList) async {
+    await _sqliteDB!!.transaction((txn) async {
+      for(var u in uList) {
+        txn.insert(
+            "usages", {"key": u}, conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+    });
+  }
   @override
   void deleteUsage(String m) async{
     await _sqliteDB!!.delete("usages",where:"key=?",whereArgs:[m]);
@@ -346,6 +416,7 @@ class SqliteMoneyBookManager extends MoneyBookManager {
           row["note"].toString());
       result.add(t);
     }
+    result.sort((a,b)=>a.transactionDate.compareTo(b.transactionDate) );
     return result;
   }
 
@@ -366,7 +437,7 @@ class SqliteMoneyBookManager extends MoneyBookManager {
           row["note"].toString());
       r.add(t);
     }
-
+    r.sort((a,b)=>a.transactionDate.compareTo(b.transactionDate) );
     return r;
   }
 }

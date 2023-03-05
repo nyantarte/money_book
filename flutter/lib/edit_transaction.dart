@@ -3,8 +3,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_money_book/transaction.dart';
 import 'package:flutter_money_book/edit_method_usages.dart';
+import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import 'package:uuid/uuid_util.dart';
+import 'generated/l10n.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 class EditTransaction extends StatefulWidget {
   EditTransaction(this.targetDate,this.targetData,{super.key, required this.title});
 
@@ -33,12 +36,26 @@ class _EditTransactionState extends State<EditTransaction> {
   var _usage = "";
   var _valueController = TextEditingController(text: "0");
   var _noteController = TextEditingController();
+  DateTime? _targetDate=null;
+  DateTime? _targetTime=null;
   Future<List<String>> methodList = Future(() => List.empty());
   Future<List<String>> usageList = Future(() => List.empty());
 
+
+  _EditTransactionState(){
+    methodList = MoneyBookManager.getManager().getMethods();
+    usageList = MoneyBookManager.getManager().getUsages();
+  }
   _onTypeChanged(value) {
+
     setState(() {
       _type = value;
+      if(_type==_TransactionType.Income && null!=widget.targetData){
+        widget.targetData!.value=widget.targetData!.value.abs();
+      }else if(_type==_TransactionType.Payment &&null!=widget.targetData){
+        widget.targetData!.value=-widget.targetData!.value.abs();
+
+      }
     });
   }
 
@@ -79,7 +96,8 @@ class _EditTransactionState extends State<EditTransaction> {
             1));
     if (null != datePicked) {
       setState(() {
-        widget.targetDate = datePicked;
+        _targetDate = datePicked;
+
       });
     }
   }
@@ -96,7 +114,7 @@ class _EditTransactionState extends State<EditTransaction> {
         context: context, initialTime: initialTime);
     if (null != newTime) {
       setState(() {
-        widget.targetDate = DateTime(
+        _targetTime = DateTime(
             curDate.year, curDate.month, curDate.day, newTime.hour,
             newTime.minute);
       }
@@ -164,9 +182,11 @@ class _EditTransactionState extends State<EditTransaction> {
     // The Flutter framework has been optimized to make rerunning build methods
     // fast, so that you can just rebuild anything that needs updating rather
 
-    var curDate = DateTime.now();
 
-    if (null != widget.targetData) {
+
+    if(null!=_targetDate){}
+    else if (null != widget.targetData) {
+
       var data = widget.targetData!!;
       _type =
       (0 < data.value) ? _TransactionType.Income : _TransactionType.Payment;
@@ -175,11 +195,15 @@ class _EditTransactionState extends State<EditTransaction> {
       _valueController =
           TextEditingController(text: data.value.abs().toString());
       _noteController = TextEditingController(text: data.note);
-      curDate = data.transactionDate;
+      _targetDate = data.transactionDate;
+      _targetTime=data.transactionDate;
+    }else if (null != widget.targetDate) {
+      _targetDate = widget.targetDate!!;
+      _targetTime=widget.targetDate!!;
     }
-    if (null != widget.targetDate) {
-      curDate = widget.targetDate!!;
-    }
+
+    final date_fmt=DateFormat(S.of(context).date_fmt);
+    final time_fmt=DateFormat(S.of(context).time_fmt);
 
     return Scaffold(
 
@@ -217,10 +241,9 @@ class _EditTransactionState extends State<EditTransaction> {
                         Text("Date"),
 
                         Text(
-                            "${curDate.year}/${curDate
-                                .month}/${curDate.day}"),
+                            "${date_fmt.format(_targetDate!!)}"),
                         ElevatedButton(
-                          child: Text("Change"),
+                          child: Text(S.of(context).change),
                           onPressed: () {
                             _onDateChange(context);
                           },
@@ -231,10 +254,9 @@ class _EditTransactionState extends State<EditTransaction> {
                       children: [
                         Text("Time"),
                         Text(
-                            "${curDate.hour}:${curDate
-                                .minute.toString().padLeft(2, "0")}"),
+                            "${time_fmt.format(_targetTime!!)}"),
                         ElevatedButton(
-                          child: Text("Change"),
+                          child: Text(S.of(context).change),
                           onPressed: () {
                             _onTimeChange(context);
                           },
@@ -342,7 +364,7 @@ class _EditTransactionState extends State<EditTransaction> {
                   children: [
                     Text("Value"),
                     Spacer(),
-                    Text(Transaction.formatter.currencySymbol),
+                    Text(S.of(context).currency_symbol),
                     Flexible(child: TextField(controller: _valueController
                     )),
                     Spacer()
@@ -507,14 +529,12 @@ class _EditTransactionState extends State<EditTransaction> {
                       onPressed: () {
 
                         _calc();
-                        var dateTarget = DateTime.now();
+
+                        var dateTarget=DateTime(_targetDate!.year,_targetDate!.month,_targetDate!.day,_targetTime!.hour,_targetTime!.minute);
                         var value=double.parse(_valueController.text).toInt();
                         value=_TransactionType.Payment== _type?-value:value;
                         if (null == widget.targetData) {
 
-                          if (null != widget.targetDate) {
-                            dateTarget = widget.targetDate!!;
-                          }
 
 
                           //assert(0 != int.parse(_valueController.text));
@@ -532,13 +552,13 @@ class _EditTransactionState extends State<EditTransaction> {
                           data.value=value;
                           data.note=_noteController.text;
 
-
+                          widget.targetData = data;
                         }
 
 
                         MoneyBookManager.getManager().add(widget.targetData!!);
                         //MoneyBookManager.getManager().save2Local();
-                        Navigator.of(context).pop();
+                        Navigator.of(context).pop(widget.targetData!!);
                       },
                     ),
                     ElevatedButton(

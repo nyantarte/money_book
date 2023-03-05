@@ -7,6 +7,11 @@ import 'package:flutter_money_book/config.dart';
 import 'package:flutter_money_book/edit_transaction.dart';
 import 'package:flutter_money_book/transaction.dart';
 import 'package:intl/intl.dart';
+import 'generated/l10n.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_money_book/search_view.dart';
+import 'package:indexed_list_view/indexed_list_view.dart';
+import 'package:flutter_money_book/import_file_view.dart';
 class MontlyListView extends StatefulWidget {
   const MontlyListView({super.key, required this.title});
 
@@ -30,8 +35,10 @@ class _MonthlyListViewState extends State<MontlyListView> {
   DateTime endDateRange = DateTime.now();
   HashMap<int, bool> selectStateTbl = HashMap();
   Future<List<Transaction>>? data;
+  var _isFiltered=false;
 
-  static final DateFormat _dateFormat=DateFormat("yyyy/MM/dd(E)");
+  Transaction? _editResult=null;
+
 
   _MonthlyListViewState() {
     var nowDate = DateTime.now();
@@ -41,7 +48,7 @@ class _MonthlyListViewState extends State<MontlyListView> {
   void _addTransaction() async {
     await Navigator.of(context).push(MaterialPageRoute(builder: (context) {
       return EditTransaction(title: "", DateTime.now(), null);
-    }));
+    })).then((value) => _editResult=value);
     setState(() {
       // This call to setState tells the Flutter framework that something has
       // changed in this State, which causes it to rerun the build method below
@@ -55,7 +62,7 @@ class _MonthlyListViewState extends State<MontlyListView> {
   void _editTransaction(Transaction t) async {
     await Navigator.of(context).push(MaterialPageRoute(builder: (context) {
       return EditTransaction(title: "", null, t);
-    }));
+    })).then((value) => _editResult=value);
     setState(() {
       // This call to setState tells the Flutter framework that something has
       // changed in this State, which causes it to rerun the build method below
@@ -80,6 +87,29 @@ class _MonthlyListViewState extends State<MontlyListView> {
     });
   }
 
+  void _onSearch() async{
+    if (_isFiltered) {
+      setState(() {
+        _setViewMonth(DateTime.now());
+      });
+    } else {
+      await Navigator.of(context).push(MaterialPageRoute(builder: (context) {
+        return SearchView(this.beginDateRange, this.endDateRange.subtract(Duration(days:1)), title: "");
+      })).then((value){
+        setState(() {
+          if (null != value) {
+            this.beginDateRange = value[0] as DateTime;
+            this.endDateRange = (value[1] as DateTime).add(Duration(days: 1));
+          }
+        });
+      });
+    }
+  }
+  void _onExport() async {
+    await Navigator.of(context).push(MaterialPageRoute(builder: (context) {
+      return ImportExportFileView(false, title: "");
+    }));
+  }
   void _setViewMonth(DateTime targetMonth) {
     beginDateRange = DateTime(targetMonth.year, targetMonth.month, 1);
     if (12 == targetMonth.month) {
@@ -99,12 +129,11 @@ class _MonthlyListViewState extends State<MontlyListView> {
     var mediaQueryData = MediaQuery.of(context);
     var screenWidth = mediaQueryData.size.width;
     var screenHeight = mediaQueryData.size.height;
-    var dateRangeText = "";
 
-    dateRangeText = beginDateRange.year.toString() + "/" +
-        beginDateRange.month.toString();
-
-
+    final num_fmt=NumberFormat.currency(symbol: S.of(context).currency_symbol);
+    final time_fmt=DateFormat(S.of(context).time_fmt);
+    final date_fmt=DateFormat(S.of(context).date_fmt);
+    var dateRangeText = "From ${date_fmt.format(beginDateRange)}\nTo ${date_fmt.format(endDateRange.subtract(Duration(days: 1)))}";
     // This method is rerun every time setState is called, for instance as done
     // by the _incrementCounter method above.
     //
@@ -131,17 +160,9 @@ class _MonthlyListViewState extends State<MontlyListView> {
                   decoration: BoxDecoration(
                     color: Colors.blue,
                   )),
-              ListTile(title: Text('Monthly')),
-              ListTile(title: Text('Daily'),
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    Navigator.of(context).push(
-                        MaterialPageRoute(builder: (context) {
-                          return DailyList(title: "");
-                        }));
-                  }
-              ),
-              ListTile(title: Text('Config'),
+              ListTile(title: Text(S.of(context).list)),//'List')),
+
+              ListTile(title: Text(S.of(context).config),
                   onTap: () {
                     Navigator.of(context).push(
                         MaterialPageRoute(builder: (context) {
@@ -177,19 +198,23 @@ class _MonthlyListViewState extends State<MontlyListView> {
               children: [
                 ElevatedButton(
                     child: Text("<"),
-                    onPressed: () {
+
+                    onPressed:_isFiltered?null: () {
                       _onViewPrevMonth();
                     }),
                 Text(dateRangeText,
                     style: const TextStyle(fontWeight: FontWeight.bold)),
                 ElevatedButton(
                   child: Text(">"),
-                  onPressed: () {
+                  onPressed:_isFiltered?null: () {
                     _onViewNextMonth();
                   },
                 )
               ],
             ),
+            Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+              children:[
             FutureBuilder(
                 future: data,
                 builder: (BuildContext context,
@@ -201,12 +226,26 @@ class _MonthlyListViewState extends State<MontlyListView> {
                         total += snapshot.data![idx].value;
                       }
 
-                      return Text("${Transaction.formatter.format(total)}");
+                      return Text("${num_fmt.format(total)}");
                     }
                   }
                   return Text("");
                 }),
-            FutureBuilder(
+            IconButton(
+              onPressed:this._onSearch,
+
+
+              icon: Icon(Icons.search),
+              color: Colors.blue,
+            ),
+            IconButton(
+              onPressed:this._onExport,
+
+
+              icon: Icon(Icons.download),
+              color: Colors.blue,
+            )]),
+          FutureBuilder(
                 future: data,
                 builder: (BuildContext context,
                     AsyncSnapshot<List<Transaction>> snapshot) {
@@ -229,25 +268,32 @@ class _MonthlyListViewState extends State<MontlyListView> {
 
                     var wList = List<Widget>.empty(growable: true);
                     var prevDate = beginDateRange.subtract(const Duration(days: 1));
+                    var editResultIdx=-1;
+
                     for (var index = 0; index <
                         snapshot.data!.length; ++index) {
                       var t = snapshot.data![index];
                       if (prevDate.year != t.transactionDate.year ||
                           prevDate.month != t.transactionDate.month ||
-                              prevDate.day != t.transactionDate.day) {
+                          prevDate.day != t.transactionDate.day) {
                         prevDate = DateTime(
                             t.transactionDate.year, t.transactionDate.month,
                             t.transactionDate.day);
                         wList.add(
                             ListTile(
                                 tileColor: Colors.grey,
-                                title: Text("${_dateFormat.format(prevDate)} 収入 ${ioTbl[prevDate][0]} 支出 ${ioTbl[prevDate][1]} ",
+                                title: Text("${date_fmt.format(
+                                    prevDate)} 収入 ${num_fmt.format(
+                                    ioTbl[prevDate][0])} 支出 ${num_fmt.format(
+                                    ioTbl[prevDate][1])} ",
                                     style: TextStyle(color: Colors.white))));
                       }
                       wList.add(
                           ListTile(
                               title: Text(
-                                  t.toString(), style: TextStyle(color: Colors
+                                  "${time_fmt.format(t.transactionDate)} ${t
+                                      .method} ${t.note} ${num_fmt.format(t
+                                      .value)}", style: TextStyle(color: Colors
                                   .black)),
                               selected: selectStateTbl.containsKey(index),
                               selectedTileColor: Colors.blue,
@@ -269,11 +315,25 @@ class _MonthlyListViewState extends State<MontlyListView> {
                                   }
                                 });
                               }));
-
+                      if (null != _editResult) {
+                        if (t.uuid == _editResult!.uuid) {
+                          editResultIdx = wList.length - 1;
+                          //_editResult=null;
+                          print(editResultIdx);
+                        }
+                      }
                     }
+                    
                     return SizedBox(
                         width:screenWidth,
-                        height:screenHeight*0.8, child:ListView(shrinkWrap: true, children: wList));
+                        height:screenHeight*0.6, child:
+                          IndexedListView.builder(controller: IndexedScrollController(initialIndex: -1!=editResultIdx?editResultIdx:0),
+                              minItemCount:0,
+                              maxItemCount: wList.length-1,
+                              itemBuilder: (context, index) {
+
+                      return wList[index];
+                    }));
                   } else {
                     return ListView(shrinkWrap: true);
                   }

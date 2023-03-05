@@ -8,6 +8,8 @@ import 'dart:io';
 import 'package:flutter_money_book/transaction.dart';
 import "package:universal_html/html.dart" as html;
 import 'package:flutter_money_book/monthly_list_view.dart';
+import 'generated/l10n.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 class Config extends StatefulWidget {
   const Config({super.key, required this.title});
 
@@ -95,10 +97,10 @@ class _ConfigViewState extends State<Config> {
                     decoration: BoxDecoration(
                       color: Colors.blue,
                     )),
-                ListTile(title: Text('Monthly'),
+                ListTile(title: Text(S.of(context).list),
 
                     onTap: _onMonthlyClicked),
-                ListTile(title: Text('Daily')),
+
 
               ],
             )
@@ -137,7 +139,7 @@ class _ConfigViewState extends State<Config> {
                             icon: Icon(Icons.upload_file),
                             color: Colors.amber,
                           ),
-                          Text("Import from file"),
+                          Text(S.of(context).import_from_file),
                         ],
                       ),
                       Spacer(),
@@ -152,7 +154,7 @@ class _ConfigViewState extends State<Config> {
                             icon: Icon(Icons.download_sharp),
                             color: Colors.amber,
                           ),
-                          Text("Export to file"),
+                          Text(S.of(context).export_to_file),
 
                         ],
                       )
@@ -169,7 +171,7 @@ class _ConfigViewState extends State<Config> {
                             icon: Icon(Icons.card_giftcard),
                             color: Colors.amber,
                           ),
-                          Text("Edit methods"),
+                          Text(S.of(context).edit_methods),
                         ]),
                     Spacer(),
                     Column(
@@ -180,7 +182,7 @@ class _ConfigViewState extends State<Config> {
                             icon: Icon(Icons.shopping_bag),
                             color: Colors.amber,
                           ),
-                          Text("Edit usages"),
+                          Text(S.of(context).edit_usages),
 
                         ])
                   ],
@@ -196,7 +198,7 @@ class _ConfigViewState extends State<Config> {
                               icon: Icon(Icons.delete),
                               color: Colors.amber,
                             ),
-                            Text("Clear transactions"),
+                            Text(S.of(context).clear_transactions),
                           ]),
                     ]
                 )

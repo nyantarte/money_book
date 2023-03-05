@@ -1,0 +1,18 @@
+{
+  "@@locale": "ja",
+  "list": "一覧",
+  "config": "設定",
+  "date_fmt": "yyyy/MM/dd(E)",
+  "date_time_fmt": "yyyy/MM/dd(E) HH:mm",
+  "time_fmt": "HH:mm",
+  "currency_symbol": "￥",
+  "begin_date": "開始日付",
+  "end_date": "終了日付",
+  "change":"変更する",
+  "import_from_file": "ファイルから取り込み",
+  "export_to_file": "ファイル出力",
+  "edit_methods": "支払い方法を編集",
+  "edit_usages": "用途を編集",
+  "clear_transactions": "データを全て消去"
+
+}

@@ -32,21 +32,20 @@ class ImportExportFileView extends StatefulWidget {
 }
 class _ImportExportFileViewState extends State<ImportExportFileView> {
 
-  final _supportTypes = ["Original", "Rakuna Kakeibo"];
+  final _supportTypes = {"Original","Rakuna Kakeibo"};
   var _curType = null;
 
   void _onOkClick()async {
     if(widget.isImport) {
-      FilePickerResult? result = await FilePicker.platform.pickFiles();
+      FilePickerResult? result = await FilePicker.platform.pickFiles(type:FileType.any);
 
       if (result != null) {
         var data = kIsWeb? result.files.single.bytes:await File(result.files.single.path!).readAsBytes();
-
         var supIdx = 0;
-        if (_supportTypes[supIdx] == _curType) {
+        if (_supportTypes.elementAt(supIdx) == _curType) {
           MoneyBookManager.getManager().loadFromCSV(
               String.fromCharCodes(data!!));
-        } else if (_supportTypes[++supIdx] == _curType) {
+        } else if (_supportTypes.elementAt(++supIdx) == _curType) {
           var uuid = Uuid();
           /*
         //excelライブラリのバグで数値が正しく読み込めないのでcsv化したものを処理する
@@ -75,7 +74,9 @@ class _ImportExportFileViewState extends State<ImportExportFileView> {
           var methods = await MoneyBookManager.getManager().getMethods();
           var usages = await MoneyBookManager.getManager().getUsages();
           print(rows.length);
-
+          var tranList=List<Transaction>.empty(growable: true);
+          var mAddList=List<String>.empty(growable: true);
+          var uAddList=List<String>.empty(growable: true);
           while (rowIdx < rows.length) {
             var strLine=rows[rowIdx++];
             if(1>=strLine.length) {
@@ -100,19 +101,27 @@ class _ImportExportFileViewState extends State<ImportExportFileView> {
                 line[2],
                 "支出" == line[6] ? -value : value,
                 line[4]);
-            print("[$rowIdx] $trans");
-            MoneyBookManager.getManager().add(trans);
-            if (methods.contains(trans.method)) {
-              MoneyBookManager.getManager().addMethod(trans.method);
-              methods = await MoneyBookManager.getManager().getMethods();
+            print("[$rowIdx] ${trans.transactionDate} ${trans.method} ${trans.value} ${trans.note}");
+            tranList.add(trans);
+            //MoneyBookManager.getManager().add(trans);
+            if (!methods.contains(trans.method) && !mAddList.contains(trans.method)) {
+            //  MoneyBookManager.getManager().addMethod(trans.method);
+            //  methods = await MoneyBookManager.getManager().getMethods();
+              mAddList.add(trans.method);
             }
-            if (usages.contains(trans.usage)) {
-              MoneyBookManager.getManager().addUsage(trans.usage);
-              usages = await MoneyBookManager.getManager().getUsages();
+            if (!usages.contains(trans.usage) && !uAddList.contains(trans.usage)) {
+//              MoneyBookManager.getManager().addUsage(trans.usage);
+//              usages = await MoneyBookManager.getManager().getUsages();
+              uAddList.add(trans.usage);
             }
           }
+          MoneyBookManager.getManager().addRange(tranList);
+          MoneyBookManager.getManager().addRangeMethod(mAddList);
+          MoneyBookManager.getManager().addRangeUsage(uAddList);
+
         }
       }
+
       print("Import end");
     }else {
       String csv =await MoneyBookManager.getManager().convToCSV();
@@ -126,14 +135,14 @@ class _ImportExportFileViewState extends State<ImportExportFileView> {
       } else {
         String? result = await FilePicker.platform.getDirectoryPath();
         var supIdx = 0;
-        if (_supportTypes[supIdx] == _curType) {
+        if (_supportTypes.elementAt(supIdx) == _curType) {
 
             final file = File("$result/moneybook.csv");
 
             file.writeAsBytes(Utf8Encoder().convert(csv));
             print(result);
         }
-        else if (_supportTypes[++supIdx] == _curType) {
+        else if (_supportTypes.elementAt(++supIdx) == _curType) {
 
 
         }

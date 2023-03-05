@@ -26,7 +26,9 @@ class _EditMethodUsagesViewState extends State<EditMethodUsages> {
 
   @override
   Widget build(BuildContext context) {
-
+    var mediaQueryData = MediaQuery.of(context);
+    var screenWidth = mediaQueryData.size.width;
+    var screenHeight = mediaQueryData.size.height;
     // This method is rerun every time setState is called, for instance as done
     // by the _incrementCounter method above.
     //
@@ -71,7 +73,9 @@ class _EditMethodUsagesViewState extends State<EditMethodUsages> {
             builder: (BuildContext context,
         AsyncSnapshot<List<String>> snapshot) {
               if (snapshot.hasData) {
-                return ListView.builder(shrinkWrap: true,
+                return SizedBox(
+                  width: screenWidth, height: screenHeight*0.6,
+                    child: ListView.builder(shrinkWrap: true,
 
                     itemCount:
                     snapshot.data!.length,
@@ -89,9 +93,11 @@ class _EditMethodUsagesViewState extends State<EditMethodUsages> {
                               }
                             });
                           });
-                    });
+                    }));
               } else {
-                return Spacer();
+                return
+                  SizedBox(width: screenWidth, height: screenHeight * 0.6,
+                      child: ListView());
               }
             }
           ),
